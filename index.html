@@ -29,7 +29,7 @@
             document.getElementById("output").innerText = `Nama: ${nama}`;
 
             // Kirim ke Google Apps Script
-            fetch("PASTE_WEBAPP_URL_DISINI", {
+            fetch("https://script.google.com/macros/s/AKfycbwMP3dhzANcKnqokupzHkCHGTX4nDpV2eJl9gsvtR82XIZZTNO8BLtyfSd9bxKmE98BSw/exec", {
               method: "POST",
               body: new URLSearchParams({
                 nama: nama   // harus sama persis dengan header "nama"
