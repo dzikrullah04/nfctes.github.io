@@ -31,10 +31,6 @@
       cursor: pointer;
       font-size: 16px;
     }
-    button:disabled {
-      background: #aaa;
-      cursor: not-allowed;
-    }
     #output {
       margin-top: 15px;
       padding: 10px;
@@ -55,7 +51,6 @@
   <script>
     const ENDPOINT = "https://script.google.com/macros/s/AKfycbwqIjSRTDY6jpGPld96RV_Z73WX7e0CHDYvFb8Ns_301UKPyqNL8Ws7YLl9tflmtHy_1w/exec";
     const output = document.getElementById('output');
-    const startBtn = document.getElementById('startBtn');
 
     function log(msg) {
       output.textContent = msg;
@@ -67,19 +62,20 @@
       const jam = String(now.getHours()).padStart(2, '0');
       const minute = String(now.getMinutes()).padStart(2, '0');
 
-      const payload = { Date: date, Jam: jam, Minute: minute, Nama: nama };
+      // bentuk query string
+      const params = new URLSearchParams({
+        Date: date,
+        Jam: jam,
+        Minute: minute,
+        Nama: nama
+      });
+
+      const url = ENDPOINT + "?" + params.toString();
 
       try {
-        const res = await fetch(ENDPOINT, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-        if (res.ok) {
-          log("✅ Data terkirim:\n" + JSON.stringify(payload, null, 2));
-        } else {
-          log("⚠️ Gagal kirim (HTTP " + res.status + ")");
-        }
+        // pakai GET dan no-cors
+        await fetch(url, { method: "GET", mode: "no-cors" });
+        log("✅ Data terkirim:\n" + decodeURIComponent(params.toString()));
       } catch (err) {
         log("❌ Error kirim: " + err);
       }
@@ -117,7 +113,8 @@
       }
     }
 
-    startBtn.addEventListener('click', startNfc);
+    document.getElementById('startBtn').addEventListener('click', startNfc);
   </script>
 </body>
 </html>
+``
