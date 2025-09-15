@@ -31,7 +31,7 @@
             // Kirim hanya nama ke Google Apps Script
             fetch("https://script.google.com/macros/s/AKfycbwqIjSRTDY6jpGPld96RV_Z73WX7e0CHDYvFb8Ns_301UKPyqNL8Ws7YLl9tflmtHy_1w/exec", {
               method: "POST",
-              body: new URLSearchParams({ nama: nama })
+              body: nama
             })
             .then(res => res.text())
             .then(txt => console.log("Response:", txt))
@@ -47,3 +47,4 @@
   </script>
 </body>
 </html>
+
