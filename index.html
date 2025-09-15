@@ -1,120 +1,61 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Baca NFC → Google Sheet</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f4f6f8;
-      margin: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-    }
-    .card {
-      background: #fff;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-      max-width: 400px;
-      text-align: center;
-    }
-    button {
-      background: #007bff;
-      border: none;
-      color: #fff;
-      padding: 10px 16px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 16px;
-    }
-    #output {
-      margin-top: 15px;
-      padding: 10px;
-      background: #f8f9fb;
-      border-radius: 6px;
-      font-size: 14px;
-      white-space: pre-wrap;
-    }
-  </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NFC Reader</title>
 </head>
 <body>
-  <div class="card">
-    <h2>Baca NFC</h2>
-    <button id="startBtn">Mulai Scan NFC</button>
-    <div id="output">Status: siap.</div>
-  </div>
+  <h1>Scan Kartu NFC</h1>
+  <button id="scanBtn">Scan NFC</button>
+  <p id="output"></p>
 
   <script>
-    const ENDPOINT = "https://script.google.com/macros/s/AKfycbwqIjSRTDY6jpGPld96RV_Z73WX7e0CHDYvFb8Ns_301UKPyqNL8Ws7YLl9tflmtHy_1w/exec";
-    const output = document.getElementById('output');
+    document.getElementById("scanBtn").addEventListener("click", async () => {
+      if ("NDEFReader" in window) {
+        try {
+          const ndef = new NDEFReader();
+          await ndef.scan();
+          console.log("NFC ready, tempelkan kartu...");
 
-    function log(msg) {
-      output.textContent = msg;
-    }
-
-    async function sendToSheet(nama) {
-      const now = new Date();
-      const date = now.toISOString().split('T')[0]; // YYYY-MM-DD
-      const jam = String(now.getHours()).padStart(2, '0');
-      const minute = String(now.getMinutes()).padStart(2, '0');
-
-      // bentuk query string
-      const params = new URLSearchParams({
-        Date: date,
-        Jam: jam,
-        Minute: minute,
-        Nama: nama
-      });
-
-      const url = ENDPOINT + "?" + params.toString();
-
-      try {
-        // pakai GET dan no-cors
-        await fetch(url, { method: "GET", mode: "no-cors" });
-        log("✅ Data terkirim:\n" + decodeURIComponent(params.toString()));
-      } catch (err) {
-        log("❌ Error kirim: " + err);
-      }
-    }
-
-    async function startNfc() {
-      if (!("NDEFReader" in window)) {
-        log("Browser ini tidak mendukung Web NFC");
-        return;
-      }
-
-      try {
-        const ndef = new NDEFReader();
-        await ndef.scan();
-        log("Tempelkan tag NFC...");
-
-        ndef.onreading = event => {
-          let nama = "";
-          for (const record of event.message.records) {
-            if (record.recordType === "text") {
-              const decoder = new TextDecoder(record.encoding || "utf-8");
-              nama = decoder.decode(record.data);
+          ndef.onreading = async event => {
+            let decoder = new TextDecoder();
+            let nama = "";
+            
+            for (const record of event.message.records) {
+              nama = decoder.decode(record.data); // hasil NFC
             }
-          }
-          if (!nama) nama = "(kosong)";
-          log("📲 NFC terbaca: " + nama + "\nMengirim ke Google Sheet...");
-          sendToSheet(nama);
-        };
 
-        ndef.onreadingerror = () => {
-          log("Gagal membaca NFC");
-        };
-      } catch (err) {
-        log("Error: " + err);
+            // Ambil waktu sekarang
+            let now = new Date();
+            let date = now.toLocaleDateString("id-ID"); 
+            let jam = now.getHours();
+            let minute = now.getMinutes();
+
+            document.getElementById("output").innerText =
+              `Nama: ${nama}, Tanggal: ${date}, Jam: ${jam}:${minute}`;
+
+            // Kirim ke Google Apps Script
+            fetch("https://script.google.com/macros/s/AKfycbwqIjSRTDY6jpGPld96RV_Z73WX7e0CHDYvFb8Ns_301UKPyqNL8Ws7YLl9tflmtHy_1w/exec", {
+              method: "POST",
+              body: new URLSearchParams({
+                nama: nama,
+                date: date,
+                jam: jam,
+                minute: minute
+              })
+            })
+            .then(res => res.text())
+            .then(txt => console.log("Response:", txt))
+            .catch(err => console.error("Error:", err));
+          };
+        } catch (error) {
+          console.error("NFC error:", error);
+        }
+      } else {
+        alert("Browser tidak mendukung Web NFC (coba pakai Chrome Android).");
       }
-    }
-
-    document.getElementById('startBtn').addEventListener('click', startNfc);
+    });
   </script>
 </body>
 </html>
-``
