@@ -1,208 +1,49 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Pembaca NFC — Elegan (Mobile)</title>
-  <style>
-    :root{--bg:#0f1724;--card:#0b1220;--accent:#06b6d4;--muted:#94a3b8;--glass: rgba(255,255,255,0.04)}
-    *{box-sizing:border-box}
-    body{margin:0;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;background:linear-gradient(180deg,#071027 0%, #07192b 60%);color:#e6eef6;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:18px}
-    .wrap{width:420px;max-width:100%;display:block}
-    .card{background:linear-gradient(180deg,var(--card), rgba(12,20,30,0.6));border-radius:12px;padding:18px;box-shadow:0 8px 30px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.04)}
-    h1{margin:0 0 6px;font-size:18px}
-    p.lead{color:var(--muted);margin:0 0 12px;font-size:13px}
-    .big-status{display:flex;gap:12px;align-items:center}
-    .indicator{width:12px;height:12px;border-radius:50%;background:#334155;box-shadow:0 0 8px rgba(3,7,18,0.6)}
-    .indicator.live{background:linear-gradient(90deg,#10b981,#06b6d4);box-shadow:0 6px 18px rgba(3,197,164,0.12)}
-    .controls{display:flex;flex-direction:column;gap:10px;margin-top:14px}
-    button{background:transparent;border:1px solid rgba(255,255,255,0.06);color:inherit;padding:12px 14px;border-radius:12px;font-weight:700;cursor:pointer}
-    button.primary{background:linear-gradient(90deg,var(--accent),#10b981);color:#042028;border:none}
-    .readout{margin-top:14px;padding:12px;border-radius:10px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.03)}
-    .label{font-size:12px;color:var(--muted);margin-bottom:6px}
-    .value{font-size:18px;font-weight:700}
-    .log{height:220px;overflow:auto;margin-top:12px;padding:10px;border-radius:8px;background:var(--glass);border:1px solid rgba(255,255,255,0.02);font-family:monospace;font-size:13px;color:#cfeff6}
-    .hint{font-size:13px;color:var(--muted)}
-    .small{font-size:13px;color:var(--muted)}
-    .ok{color:#acf6ea}
-    .error{color:#ffb4b4}
-    footer{margin-top:12px;font-size:12px;color:var(--muted)}
-    @media (min-width:420px){
-      .wrap{width:420px}
-    }
-  </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NFC Reader</title>
 </head>
 <body>
-  <div class="wrap">
-    <div class="card" id="mainCard">
-      <h1>Pembaca NFC</h1>
-      <p class="lead">Baca tag NFC — simpan isi pertama ke variabel <code>nama</code> lalu kirim via POST.</p>
+  <h1>Scan Kartu NFC</h1>
+  <button id="scanBtn">Scan NFC</button>
+  <p id="output"></p>
 
-      <div class="big-status">
-        <div id="dot" class="indicator"></div>
-        <div>
-          <div id="statusTitle">Status: <strong id="statusText">Idle</strong></div>
-          <div style="font-size:13px;color:var(--muted);margin-top:6px" id="lastSeen">Belum ada pembacaan</div>
-        </div>
-      </div>
+  <script>
+    document.getElementById("scanBtn").addEventListener("click", async () => {
+      if ("NDEFReader" in window) {
+        try {
+          const ndef = new NDEFReader();
+          await ndef.scan();
+          console.log("NFC ready, tempelkan kartu...");
 
-      <div class="controls">
-        <button id="startBtn" class="primary">Mulai Scan NFC</button>
-        <button id="stopBtn">Berhenti Scan</button>
-        <button id="clearLog">Bersihkan Log</button>
-      </div>
+          ndef.onreading = async event => {
+            let decoder = new TextDecoder();
+            let nama = "";
 
-      <div class="readout">
-        <div class="label">Nilai variable <code>nama</code></div>
-        <div id="namaVal" class="value">—</div>
+            for (const record of event.message.records) {
+              nama = decoder.decode(record.data);
+            }
 
-        <div class="label" style="margin-top:10px">Status pengiriman</div>
-        <div id="sendStatus" class="small">Belum mengirim</div>
+            document.getElementById("output").innerText = `Nama: ${nama}`;
 
-        <div class="log" id="log"></div>
-      </div>
-
-      <footer>
-        Catatan: Web NFC bekerja di Chrome Android pada halaman HTTPS. Pastikan NFC perangkat aktif.
-      </footer>
-    </div>
-  </div>
-
-<script>
-// Endpoint yang diminta user
-const ENDPOINT = 'https://script.google.com/macros/s/AKfycbwqIjSRTDY6jpGPld96RV_Z73WX7e0CHDYvFb8Ns_301UKPyqNL8Ws7YLl9tflmtHy_1w/exec';
-
-let nama = null; // variable yang menyimpan data NFC
-let ndefReader = null;
-let scanning = false;
-
-const dot = document.getElementById('dot');
-const statusText = document.getElementById('statusText');
-const lastSeen = document.getElementById('lastSeen');
-const namaVal = document.getElementById('namaVal');
-const logEl = document.getElementById('log');
-const sendStatus = document.getElementById('sendStatus');
-
-function log(msg, cls){
-  const t = new Date().toLocaleString();
-  const el = document.createElement('div');
-  el.textContent = `[${t}] ${msg}`;
-  if(cls) el.classList.add(cls);
-  logEl.prepend(el);
-}
-
-function setStatus(s){
-  statusText.textContent = s;
-  if(s.toLowerCase().includes('scan')|| s.toLowerCase().includes('listening') || s.toLowerCase().includes('aktif')){
-    dot.classList.add('live');
-  } else {
-    dot.classList.remove('live');
-  }
-}
-
-async function startScan(){
-  if(!('NDEFReader' in window)){
-    setStatus('Tidak didukung');
-    log('Web NFC tidak didukung di browser ini', 'error');
-    return;
-  }
-
-  try{
-    ndefReader = new NDEFReader();
-    await ndefReader.scan();
-    scanning = true;
-    setStatus('Scanning NFC — aktif');
-    log('Mulai scan NFC');
-
-    ndefReader.onreadingerror = () => {
-      log('Gagal membaca tag NFC', 'error');
-    };
-
-    ndefReader.onreading = event => {
-      let parsed = [];
-      for(const record of event.message.records){
-        try{
-          if(record.recordType === 'text'){
-            const textDecoder = new TextDecoder(record.encoding || 'utf-8');
-            const text = textDecoder.decode(record.data);
-            parsed.push(text);
-          } else if(record.recordType === 'mime'){
-            const dec = new TextDecoder('utf-8');
-            parsed.push(dec.decode(record.data));
-          } else {
-            parsed.push('[recordType:' + record.recordType + ']');
-          }
-        }catch(e){
-          parsed.push('[error decoding record]');
+            // Kirim hanya nama ke Google Apps Script
+            fetch("https://script.google.com/macros/s/AKfycbwqIjSRTDY6jpGPld96RV_Z73WX7e0CHDYvFb8Ns_301UKPyqNL8Ws7YLl9tflmtHy_1w/exec", {
+              method: "POST",
+              body: new URLSearchParams({ nama: nama })
+            })
+            .then(res => res.text())
+            .then(txt => console.log("Response:", txt))
+            .catch(err => console.error("Error:", err));
+          };
+        } catch (error) {
+          console.error("NFC error:", error);
         }
+      } else {
+        alert("Browser tidak mendukung Web NFC (gunakan Chrome Android).");
       }
-
-      const value = parsed.length? parsed[0] : '[tidak ada payload]';
-      nama = value;
-      namaVal.textContent = nama;
-      lastSeen.textContent = 'Terakhir: ' + new Date().toLocaleString();
-      log('Tag terbaca: ' + nama, 'ok');
-
-      // kirim ke endpoint via POST
-      sendStatus.textContent = 'Mengirim...';
-      postNama(nama).then(r => {
-        sendStatus.textContent = 'Terkirim pada ' + new Date().toLocaleTimeString();
-        log('Berhasil mengirim ke endpoint');
-      }).catch(err => {
-        sendStatus.textContent = 'Gagal mengirim';
-        log('Gagal mengirim: ' + err.message, 'error');
-      });
-    };
-
-  }catch(err){
-    setStatus('Error');
-    log('Tidak dapat memulai scan: ' + err.message, 'error');
-  }
-}
-
-async function stopScan(){
-  try{
-    if(ndefReader && typeof ndefReader.stop === 'function'){
-      ndefReader.stop();
-    }
-  }catch(e){
-    // ignore
-  }
-  scanning = false;
-  setStatus('Idle');
-  log('Scan dihentikan');
-}
-
-async function postNama(n){
-  const body = { nama: n };
-  const resp = await fetch(ENDPOINT, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-  if(!resp.ok) throw new Error('HTTP ' + resp.status);
-  return resp;
-}
-
-// UI bindings
-document.getElementById('startBtn').addEventListener('click', async () => {
-  await startScan();
-});
-
-document.getElementById('stopBtn').addEventListener('click', async () => {
-  await stopScan();
-});
-
-document.getElementById('clearLog').addEventListener('click', ()=>{logEl.innerHTML='';});
-
-// initial support check
-if(!('NDEFReader' in window)){
-  sendStatus.textContent = 'Web NFC tidak tersedia. Buka halaman ini di Chrome untuk Android (HTTPS) dan aktifkan NFC pada perangkat.';
-} else {
-  sendStatus.textContent = 'Web NFC tersedia. Siapkan perangkat dan izinkan akses saat diminta.';
-}
-
-setStatus('Idle');
-</script>
+    });
+  </script>
 </body>
 </html>
