@@ -1,90 +1,123 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Demo Baca NFC</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Baca NFC → Google Sheet</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       background: #f4f6f8;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
       margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
     }
-    h1 {
-      color: #333;
+    .card {
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      max-width: 400px;
+      text-align: center;
     }
     button {
-      padding: 10px 20px;
-      margin: 20px;
-      border: none;
-      border-radius: 8px;
       background: #007bff;
+      border: none;
       color: #fff;
-      font-size: 16px;
+      padding: 10px 16px;
+      border-radius: 8px;
       cursor: pointer;
+      font-size: 16px;
     }
-    button:hover {
-      background: #0056b3;
+    button:disabled {
+      background: #aaa;
+      cursor: not-allowed;
     }
     #output {
-      margin-top: 20px;
-      padding: 15px;
-      width: 80%;
-      max-width: 400px;
-      background: #fff;
-      border-radius: 10px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      text-align: center;
-      font-size: 16px;
-      color: #444;
+      margin-top: 15px;
+      padding: 10px;
+      background: #f8f9fb;
+      border-radius: 6px;
+      font-size: 14px;
+      white-space: pre-wrap;
     }
   </style>
 </head>
 <body>
-  <h1>Baca NFC di Browser</h1>
-  <button onclick="startNfc()">Mulai Scan NFC</button>
-  <div id="output">Tempelkan kartu/tag NFC...</div>
+  <div class="card">
+    <h2>Baca NFC</h2>
+    <button id="startBtn">Mulai Scan NFC</button>
+    <div id="output">Status: siap.</div>
+  </div>
 
   <script>
-    async function startNfc() {
-      const output = document.getElementById('output');
+    const ENDPOINT = "https://script.google.com/macros/s/AKfycbwqIjSRTDY6jpGPld96RV_Z73WX7e0CHDYvFb8Ns_301UKPyqNL8Ws7YLl9tflmtHy_1w/exec";
+    const output = document.getElementById('output');
+    const startBtn = document.getElementById('startBtn');
 
+    function log(msg) {
+      output.textContent = msg;
+    }
+
+    async function sendToSheet(nama) {
+      const now = new Date();
+      const date = now.toISOString().split('T')[0]; // YYYY-MM-DD
+      const jam = String(now.getHours()).padStart(2, '0');
+      const minute = String(now.getMinutes()).padStart(2, '0');
+
+      const payload = { Date: date, Jam: jam, Minute: minute, Nama: nama };
+
+      try {
+        const res = await fetch(ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          log("✅ Data terkirim:\n" + JSON.stringify(payload, null, 2));
+        } else {
+          log("⚠️ Gagal kirim (HTTP " + res.status + ")");
+        }
+      } catch (err) {
+        log("❌ Error kirim: " + err);
+      }
+    }
+
+    async function startNfc() {
       if (!("NDEFReader" in window)) {
-        output.textContent = "Browser atau perangkat tidak mendukung Web NFC.";
+        log("Browser ini tidak mendukung Web NFC");
         return;
       }
 
       try {
         const ndef = new NDEFReader();
         await ndef.scan();
-        output.textContent = "Tempelkan tag NFC ke belakang ponsel...";
+        log("Tempelkan tag NFC...");
 
         ndef.onreading = event => {
-          let text = "";
+          let nama = "";
           for (const record of event.message.records) {
             if (record.recordType === "text") {
               const decoder = new TextDecoder(record.encoding || "utf-8");
-              text += decoder.decode(record.data);
-            } else {
-              text += `[${record.recordType}]`;
+              nama = decoder.decode(record.data);
             }
           }
-          output.textContent = "Data NFC: " + (text || "(tidak ada data teks)");
+          if (!nama) nama = "(kosong)";
+          log("📲 NFC terbaca: " + nama + "\nMengirim ke Google Sheet...");
+          sendToSheet(nama);
         };
 
         ndef.onreadingerror = () => {
-          output.textContent = "Gagal membaca tag NFC.";
+          log("Gagal membaca NFC");
         };
-
       } catch (err) {
-        output.textContent = "Error: " + err;
+        log("Error: " + err);
       }
     }
+
+    startBtn.addEventListener('click', startNfc);
   </script>
 </body>
 </html>
