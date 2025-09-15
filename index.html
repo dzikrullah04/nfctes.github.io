@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NFC Reader</title>
+  <title>NFC Reader ke Google Sheet</title>
 </head>
 <body>
   <h1>Scan Kartu NFC</h1>
@@ -28,10 +28,12 @@
 
             document.getElementById("output").innerText = `Nama: ${nama}`;
 
-            // Kirim hanya nama ke Google Apps Script
-            fetch("https://script.google.com/macros/s/AKfycbwqIjSRTDY6jpGPld96RV_Z73WX7e0CHDYvFb8Ns_301UKPyqNL8Ws7YLl9tflmtHy_1w/exec", {
+            // Kirim ke Google Apps Script
+            fetch("PASTE_WEBAPP_URL_DISINI", {
               method: "POST",
-              body: nama
+              body: new URLSearchParams({
+                nama: nama   // harus sama persis dengan header "nama"
+              })
             })
             .then(res => res.text())
             .then(txt => console.log("Response:", txt))
@@ -47,4 +49,3 @@
   </script>
 </body>
 </html>
-
