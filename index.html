@@ -3,85 +3,90 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Scan NFC Presensi</title>
+  <title>Absensi NFC</title>
   <style>
     body {
-      font-family: 'Poppins', sans-serif;
-      background: linear-gradient(135deg, #74ebd5, #ACB6E5);
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #4facfe, #00f2fe);
       height: 100vh;
-      margin: 0;
       display: flex;
       justify-content: center;
       align-items: center;
-    }
-
-    .container {
-      background: white;
-      padding: 30px;
-      border-radius: 16px;
-      box-shadow: 0px 8px 20px rgba(0,0,0,0.2);
-      text-align: center;
-      max-width: 400px;
-      width: 100%;
+      margin: 0;
     }
 
     h1 {
-      font-size: 22px;
-      margin-bottom: 20px;
-      color: #333;
+      color: white;
+      text-shadow: 1px 1px 4px rgba(0,0,0,0.3);
     }
 
+    /* Popup style */
     #popup {
       position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0,0,0,0.6);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      visibility: hidden;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.8);
+      background: white;
+      padding: 20px 40px;
+      border-radius: 15px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+      opacity: 0;
+      transition: all 0.3s ease;
+      text-align: center;
+      z-index: 1000;
     }
 
     #popup.show {
-      visibility: visible;
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
     }
 
-    .popup-content {
-      background: #fff;
-      padding: 25px 35px;
-      border-radius: 12px;
-      text-align: center;
+    #popupText {
       font-size: 20px;
       font-weight: bold;
-      color: #2d3436;
-      animation: fadeIn 0.3s ease-in-out;
-    }
-
-    @keyframes fadeIn {
-      from { transform: scale(0.8); opacity: 0; }
-      to { transform: scale(1); opacity: 1; }
+      color: #333;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Silakan Scan NFC</h1>
-    <p>Tempelkan kartu NFC Anda ke perangkat</p>
-  </div>
+  <h1>Tempelkan Kartu NFC Anda</h1>
 
   <div id="popup">
-    <div class="popup-content" id="popupText"></div>
+    <div id="popupText"></div>
   </div>
 
   <script>
     let scanning = true;
 
+    async function startNFC() {
+      if ("NDEFReader" in window) {
+        try {
+          const ndef = new NDEFReader();
+          await ndef.scan();
+          console.log("NFC ready, tempelkan kartu...");
+
+          ndef.onreading = event => {
+            const decoder = new TextDecoder();
+            for (const record of event.message.records) {
+              const nama = decoder.decode(record.data);
+              console.log("Data NFC:", nama);
+              sendData(nama);
+            }
+          };
+
+        } catch (error) {
+          console.error("NFC Error:", error);
+          alert("Gagal memulai NFC: " + error);
+        }
+      } else {
+        alert("Browser tidak mendukung Web NFC. Gunakan Chrome Android terbaru.");
+      }
+    }
+
     async function sendData(nama) {
       if (!scanning) return;
 
-      scanning = false; // disable scan sementara
+      scanning = false;
       showPopup("Selamat Datang " + nama);
 
       const formData = new FormData();
@@ -96,7 +101,6 @@
         console.error("Error:", err);
       }
 
-      // tunggu 2 detik lalu enable lagi
       setTimeout(() => {
         hidePopup();
         scanning = true;
@@ -112,7 +116,8 @@
       document.getElementById("popup").classList.remove("show");
     }
 
-
+    // Mulai NFC saat halaman dibuka
+    window.addEventListener("load", startNFC);
   </script>
 </body>
 </html>
